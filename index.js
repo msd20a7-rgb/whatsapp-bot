@@ -36,19 +36,27 @@ const client = new Client({
 });
 
 let isConnected = false;
+let isAuthenticating = false;
 let latestQR = null;
 
 client.on('qr', (qr) => {
-    console.log('Scan this QR code with WhatsApp:\n');
     latestQR = qr;
     isConnected = false;
-    qrcode.generate(qr, { small: true });
+    isAuthenticating = false;
+    console.log('New QR Code generated, waiting for scan...');
+});
+
+client.on('authenticated', () => {
+    isAuthenticating = true;
+    latestQR = null;
+    console.log('QR Code scanned! Authenticating and syncing messages...');
 });
 
 client.on('ready', () => {
-    console.log('✅ KERN Logistics Stock Bot is connected and listening!');
     isConnected = true;
+    isAuthenticating = false;
     latestQR = null;
+    console.log('✅ KERN Logistics Stock Bot is connected and ready!');
 });
 
 client.on('disconnected', (reason) => {
@@ -638,6 +646,7 @@ app.get('/ping', (req, res) => {
 app.get('/api/whatsapp/status', (req, res) => {
     res.json({
         connected: isConnected,
+        authenticating: isAuthenticating,
         qr: latestQR
     });
 });

@@ -20,7 +20,7 @@ function App() {
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [waStatus, setWaStatus] = useState({ connected: false, qr: null });
+  const [waStatus, setWaStatus] = useState({ connected: false, authenticating: false, qr: null });
   const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
@@ -294,18 +294,30 @@ function App() {
             <h3 style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>WhatsApp Connection</h3>
             
             {waStatus.connected ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--success)', fontWeight: 500, fontSize: '1.1rem' }}>
-                  <CheckCircle size={24} /> Connected Successfully
+              <div style={{ textAlign: 'center', padding: '2rem' }}>
+                <div style={{
+                  width: '60px', height: '60px', borderRadius: '50%',
+                  background: 'var(--success)', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', margin: '0 auto 1rem'
+                }}>
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
                 </div>
+                <h3 style={{ color: 'var(--text-main)', marginBottom: '0.5rem' }}>Successfully Connected</h3>
+                <p style={{ color: 'var(--text-muted)' }}>Your WhatsApp bot is currently active and listening for messages.</p>
                 <button 
                   className="action-btn" 
                   onClick={handleDisconnectWhatsApp}
                   disabled={isResetting}
-                  style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.3)', marginTop: '0.5rem' }}
+                  style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.3)', marginTop: '1.5rem' }}
                 >
                   <LogOut size={16} /> {isResetting ? 'Disconnecting...' : 'Disconnect & Link New Account'}
                 </button>
+              </div>
+            ) : waStatus.authenticating ? (
+              <div className="loader" style={{ minHeight: '150px' }}>
+                <div className="spinner"></div> Authenticating with WhatsApp...
               </div>
             ) : waStatus.qr ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
