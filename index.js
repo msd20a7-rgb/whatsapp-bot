@@ -29,7 +29,6 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--single-process',
             '--disable-gpu'
         ]
     }
@@ -44,6 +43,7 @@ client.on('qr', (qr) => {
     isConnected = false;
     isAuthenticating = false;
     console.log('New QR Code generated, waiting for scan...');
+    qrcode.generate(qr, { small: true });
 });
 
 client.on('authenticated', () => {
