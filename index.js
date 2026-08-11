@@ -21,7 +21,8 @@ if (fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'))
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
-        executablePath: executablePath || undefined,
+        executablePath: executablePath || process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
     }
 });
 
