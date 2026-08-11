@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Edit2, Save, X, RefreshCw, Box, Search, Package } from 'lucide-react';
+import { Edit2, Save, X, RefreshCw, Box, Search, Package, Settings, LogOut, CheckCircle } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import './index.css';
 
 // Initialize Supabase Client
@@ -16,6 +17,11 @@ function App() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+
+  // Settings State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [waStatus, setWaStatus] = useState({ connected: false, qr: null });
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     fetchStock();
@@ -37,6 +43,35 @@ function App() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Poll WhatsApp Status when settings are open
+  useEffect(() => {
+    let interval;
+    if (isSettingsOpen) {
+      const fetchStatus = async () => {
+        try {
+          const res = await fetch('http://localhost:3000/api/whatsapp/status');
+          const data = await res.json();
+          setWaStatus(data);
+        } catch (err) {
+          console.error('Failed to fetch WhatsApp status');
+        }
+      };
+      fetchStatus();
+      interval = setInterval(fetchStatus, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isSettingsOpen]);
+
+  const handleDisconnectWhatsApp = async () => {
+    setIsResetting(true);
+    try {
+      await fetch('http://localhost:3000/api/whatsapp/logout', { method: 'POST' });
+    } catch (err) {
+      console.error('Failed to disconnect');
+    }
+    setIsResetting(false);
+  };
 
   const fetchStock = async () => {
     try {
@@ -101,9 +136,14 @@ function App() {
           <span><Box size={32} /></span>
           KERN Logistics Admin
         </h1>
-        <button className="action-btn" onClick={fetchStock}>
-          <RefreshCw size={18} /> Refresh
-        </button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button className="action-btn" onClick={fetchStock}>
+            <RefreshCw size={18} /> Refresh
+          </button>
+          <button className="action-btn" onClick={() => setIsSettingsOpen(true)}>
+            <Settings size={18} /> Settings
+          </button>
+        </div>
       </header>
 
       <div className="glass-panel" style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -237,6 +277,49 @@ function App() {
               </div>
             </form>
           )}
+        </div>
+      </div>
+
+      {/* Settings Modal */}
+      <div className={`modal-overlay ${isSettingsOpen ? 'active' : ''}`}>
+        <div className="modal glass-panel">
+          <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2>Bot Settings</h2>
+            <button className="action-btn" onClick={() => setIsSettingsOpen(false)} style={{ border: 'none', padding: '0.5rem' }}>
+              <X size={20} />
+            </button>
+          </div>
+          
+          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
+            <h3 style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>WhatsApp Connection</h3>
+            
+            {waStatus.connected ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--success)', fontWeight: 500, fontSize: '1.1rem' }}>
+                  <CheckCircle size={24} /> Connected Successfully
+                </div>
+                <button 
+                  className="action-btn" 
+                  onClick={handleDisconnectWhatsApp}
+                  disabled={isResetting}
+                  style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.3)', marginTop: '0.5rem' }}
+                >
+                  <LogOut size={16} /> {isResetting ? 'Disconnecting...' : 'Disconnect & Link New Account'}
+                </button>
+              </div>
+            ) : waStatus.qr ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Scan this QR code with your WhatsApp app to link a new device.</p>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', display: 'inline-block' }}>
+                   <QRCodeSVG value={waStatus.qr} size={200} />
+                </div>
+              </div>
+            ) : (
+              <div className="loader" style={{ minHeight: '150px' }}>
+                <div className="spinner"></div> {isResetting ? 'Resetting Session...' : 'Loading Status...'}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -4,6 +4,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = 'https://ibflwpfzhqudjautjpaq.supabase.co';
@@ -24,13 +25,25 @@ const client = new Client({
     }
 });
 
+let isConnected = false;
+let latestQR = null;
+
 client.on('qr', (qr) => {
     console.log('Scan this QR code with WhatsApp:\n');
+    latestQR = qr;
+    isConnected = false;
     qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
     console.log('✅ KERN Logistics Stock Bot is connected and listening!');
+    isConnected = true;
+    latestQR = null;
+});
+
+client.on('disconnected', (reason) => {
+    console.log('Client was logged out', reason);
+    isConnected = false;
 });
 
 async function fetchStockDataFromSupabase(partyName = 'LORDS & KINGS ENTERPRISES') {
@@ -601,12 +614,49 @@ client.initialize();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(cors());
+
 app.get('/', (req, res) => {
     res.send('KERN Logistics Bot is running!');
 });
 
 app.get('/ping', (req, res) => {
     res.status(200).send('Pong!');
+});
+
+// --- Settings API Endpoints ---
+app.get('/api/whatsapp/status', (req, res) => {
+    res.json({
+        connected: isConnected,
+        qr: latestQR
+    });
+});
+
+app.post('/api/whatsapp/logout', async (req, res) => {
+    try {
+        console.log('Logging out client via API...');
+        isConnected = false;
+        latestQR = null;
+        
+        await client.logout();
+        await client.destroy();
+        
+        // Re-initialize to get a new QR code
+        console.log('Re-initializing client...');
+        client.initialize();
+        
+        res.json({ success: true, message: 'Logged out and generating new QR code.' });
+    } catch (err) {
+        console.error('Error logging out:', err);
+        // If the client wasn't connected, logout throws. We can just destroy and re-init.
+        try {
+            await client.destroy();
+            client.initialize();
+            res.json({ success: true, message: 'Destroyed and re-initializing.' });
+        } catch (destroyErr) {
+            res.status(500).json({ error: 'Failed to reset client.' });
+        }
+    }
 });
 
 app.listen(PORT, () => {
