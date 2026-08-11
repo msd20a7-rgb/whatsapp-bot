@@ -50,7 +50,7 @@ function App() {
     if (isSettingsOpen) {
       const fetchStatus = async () => {
         try {
-          const res = await fetch('http://localhost:3000/api/whatsapp/status');
+          const res = await fetch('https://whatsapp-bot-etdf.onrender.com/api/whatsapp/status');
           const data = await res.json();
           setWaStatus(data);
         } catch (err) {
@@ -66,7 +66,7 @@ function App() {
   const handleDisconnectWhatsApp = async () => {
     setIsResetting(true);
     try {
-      await fetch('http://localhost:3000/api/whatsapp/logout', { method: 'POST' });
+      await fetch('https://whatsapp-bot-etdf.onrender.com/api/whatsapp/logout', { method: 'POST' });
     } catch (err) {
       console.error('Failed to disconnect');
     }
