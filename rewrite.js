@@ -72,7 +72,7 @@ client.on('qr', (qr) => {
 });
 
 client.on('ready', () => {
-    console.log('✅ KERN Logistics Stock Bot is connected and listening!');
+    console.log('✅ Lords and Kings Stock Bot is connected and listening!');
 });
 
 async function fetchStockDataFromSupabase(partyName = 'LORDS & KINGS ENTERPRISES') {
@@ -120,7 +120,7 @@ async function fetchStockDataFromSupabase(partyName = 'LORDS & KINGS ENTERPRISES
 }
 
 /**
- * Generates a Stock Summary PDF matching the KERN Logistics layout
+ * Generates a Stock Summary PDF matching the Lords and Kings layout
  */
 function generateStockSummaryPDF(data, outputPath) {
     return new Promise((resolve, reject) => {
@@ -136,14 +136,14 @@ function generateStockSummaryPDF(data, outputPath) {
         doc.rect(leftX, 30, width, 780).stroke('#333333');
 
         // --- 2. HEADER SECTION ---
-        doc.fontSize(22).font('Helvetica-Bold').fillColor('#000000').text('KERN', leftX + 15, 45);
+        doc.fontSize(22).font('Helvetica-Bold').fillColor('#000000').text('LORDS & KINGS', leftX + 15, 45);
         doc.fontSize(8).font('Helvetica').fillColor('#666666').text('Logistics & Beyond', leftX + 15, 68);
 
         doc.fontSize(8).font('Helvetica-Bold').fillColor('#000000')
-           .text('KERN LOGISTICS PRIVATE LIMITED', 230, 42, { align: 'right', width: 320 });
+           .text('LORDS & KINGS ENTERPRISES', 230, 42, { align: 'right', width: 320 });
         
         doc.font('Helvetica').fontSize(7.5).fillColor('#333333')
-           .text('No.314/1A2, Chettipedu Village,Sriperumbudur Taluk,\\nKancheepuram District,Tamil Nadu - 602105.\\nContact : 9994215809\\nE-Mail: coldstore@kernlogistics.com / kernagrostore@gmail.com\\nWebsite: www.kernlogistics.com', 230, 52, { align: 'right', width: 320 });
+           .text('No.314/1A2, Chettipedu Village,Sriperumbudur Taluk,\\nKancheepuram District,Tamil Nadu - 602105.\\nContact : 9994215809\\nE-Mail: contact@lordsandkings.com\\nWebsite: www.lordsandkings.com', 230, 52, { align: 'right', width: 320 });
 
         doc.moveTo(leftX, 110).lineTo(rightX, 110).lineWidth(1).stroke('#333333');
 
@@ -253,7 +253,7 @@ function generateStockSummaryPDF(data, outputPath) {
 }
 
 /**
- * Generates a Delivery Challan PDF matching the KERN Logistics layout
+ * Generates a Delivery Challan PDF matching the Lords and Kings layout
  */
 function generateDeliveryChallanPDF(data, outputPath) {
     return new Promise((resolve, reject) => {
@@ -269,17 +269,17 @@ function generateDeliveryChallanPDF(data, outputPath) {
         doc.rect(leftX, 30, width, 780).stroke('#333333');
 
         // --- 2. HEADER SECTION ---
-        doc.fontSize(22).font('Helvetica-Bold').fillColor('#000000').text('KERN', leftX + 15, 45);
+        doc.fontSize(22).font('Helvetica-Bold').fillColor('#000000').text('LORDS & KINGS', leftX + 15, 45);
         doc.fontSize(8).font('Helvetica').fillColor('#666666').text('Logistics & Beyond', leftX + 15, 68);
         doc.fontSize(8).fillColor('#333333');
         doc.text('GSTIN', leftX + 15, 85); doc.text(':  33AAACP4290L1ZB', leftX + 50, 85);
         doc.text('CIN', leftX + 15, 95);   doc.text(':  U74900TN1993PTC024718', leftX + 50, 95);
 
         doc.fontSize(8).font('Helvetica-Bold').fillColor('#000000')
-           .text('KERN LOGISTICS PRIVATE LIMITED', 230, 42, { align: 'right', width: 320 });
+           .text('LORDS & KINGS ENTERPRISES', 230, 42, { align: 'right', width: 320 });
         
         doc.font('Helvetica').fontSize(7.5).fillColor('#333333')
-           .text('No.314/1A2, Chettipedu Village,Sriperumbudur Taluk,\\nKancheepuram District,Tamil Nadu - 602105.\\nContact : 9994215809\\nE-Mail: coldstore@kernlogistics.com / kernagrostore@gmail.com\\nWebsite: www.kernlogistics.com', 230, 52, { align: 'right', width: 320 });
+           .text('No.314/1A2, Chettipedu Village,Sriperumbudur Taluk,\\nKancheepuram District,Tamil Nadu - 602105.\\nContact : 9994215809\\nE-Mail: contact@lordsandkings.com\\nWebsite: www.lordsandkings.com', 230, 52, { align: 'right', width: 320 });
 
         doc.moveTo(leftX, 115).lineTo(rightX, 115).lineWidth(1).stroke('#333333');
 
@@ -376,7 +376,7 @@ function generateDeliveryChallanPDF(data, outputPath) {
         doc.text('E. & O.E', rightX - 60, tableBottom + 35);
         
         doc.text('GR', leftX + 5, tableBottom + 55);
-        doc.text('For Kern Logistics Private Limited', rightX - 180, tableBottom + 55);
+        doc.text('For Lords and Kings Enterprises', rightX - 180, tableBottom + 55);
         
         // Signature Placeholder
         doc.moveTo(rightX - 120, tableBottom + 105).lineTo(rightX - 20, tableBottom + 105).stroke('#888888');
@@ -414,7 +414,7 @@ client.on('message_create', async (msg) => {
     }
 
     // Ignore messages from the bot itself to prevent loops
-    if (msg.fromMe && (msg.body === 'pong 🏓' || msg.body.includes('Generating') || msg.body.includes('Updated GRN') || msg.hasMedia || msg.body.includes('Welcome to KERN Logistics') || msg.body.includes('Available Products') || msg.body.includes('Enter the quantity') || msg.body.includes('Reply with the product number'))) {
+    if (msg.fromMe && (msg.body === 'pong 🏓' || msg.body.includes('Generating') || msg.body.includes('Updated GRN') || msg.hasMedia || msg.body.includes('Welcome to Lords and Kings') || msg.body.includes('Available Products') || msg.body.includes('Enter the quantity') || msg.body.includes('Reply with the product number'))) {
         return;
     }
 
@@ -481,7 +481,7 @@ client.on('message_create', async (msg) => {
         case 'IDLE':
             if (text === 'LAK/-0026') {
                 session.state = 'AWAITING_ACTION';
-                await msg.reply('*Welcome to KERN Logistics!*\\nPlease choose an option for LORDS & KINGS:\\n1️⃣ Deliver Products\\n2️⃣ Get Stock Summary\\n\\n_(Reply with 1 or 2)_');
+                await msg.reply('*Welcome to Lords and Kings!*\\nPlease choose an option for LORDS & KINGS:\\n1️⃣ Deliver Products\\n2️⃣ Get Stock Summary\\n\\n_(Reply with 1 or 2)_');
             }
             break;
 
@@ -534,7 +534,7 @@ client.on('message_create', async (msg) => {
                     
                     await generateStockSummaryPDF(stockData, pdfPath);
                     const media = MessageMedia.fromFilePath(pdfPath);
-                    await client.sendMessage(msg.to, media, { caption: \`📄 *KERN Logistics Live Stock Summary*\\n*Party:* \${stockData.partyName}\\n*As On Date:* \${stockData.asOfDate}\` });
+                    await client.sendMessage(msg.to, media, { caption: \`📄 *Lords and Kings Live Stock Summary*\\n*Party:* \${stockData.partyName}\\n*As On Date:* \${stockData.asOfDate}\` });
                     fs.unlinkSync(pdfPath);
                 } catch (error) {
                     console.error('Error generating Stock Summary PDF:', error);
@@ -665,7 +665,7 @@ client.on('message_create', async (msg) => {
                 try {
                     await generateDeliveryChallanPDF(currentChallanData, pdfPath);
                     const media = MessageMedia.fromFilePath(pdfPath);
-                    await client.sendMessage(msg.to, media, { caption: \`📄 *KERN Logistics Delivery Challan*\\n*Customer:* \${currentChallanData.customerName}\\n*DC No:* \${currentChallanData.dcNo}\` });
+                    await client.sendMessage(msg.to, media, { caption: \`📄 *Lords and Kings Delivery Challan*\\n*Customer:* \${currentChallanData.customerName}\\n*DC No:* \${currentChallanData.dcNo}\` });
                     fs.unlinkSync(pdfPath);
                 } catch (error) {
                     console.error('Error generating Delivery Challan PDF:', error);
