@@ -17,6 +17,10 @@ function App() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [activeTab, setActiveTab] = useState('inventory');
+  
+  // API URL for local development vs production
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -50,7 +54,7 @@ function App() {
     if (isSettingsOpen) {
       const fetchStatus = async () => {
         try {
-          const res = await fetch('https://whatsapp-bot-etdf.onrender.com/api/whatsapp/status');
+          const res = await fetch(`${API_BASE_URL}/api/whatsapp/status`);
           const data = await res.json();
           setWaStatus(data);
         } catch (err) {
@@ -66,7 +70,7 @@ function App() {
   const handleDisconnectWhatsApp = async () => {
     setIsResetting(true);
     try {
-      await fetch('https://whatsapp-bot-etdf.onrender.com/api/whatsapp/logout', { method: 'POST' });
+      await fetch(`${API_BASE_URL}/api/whatsapp/logout`, { method: 'POST' });
     } catch (err) {
       console.error('Failed to disconnect');
     }
@@ -134,7 +138,7 @@ function App() {
       <header className="header">
         <h1>
           <span><Box size={32} /></span>
-          KERN Logistics Admin
+          Lords and Kings Admin
         </h1>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button className="action-btn" onClick={fetchStock}>

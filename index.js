@@ -3,13 +3,52 @@ const qrcode = require('qrcode-terminal');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
-const express = require('express');
-const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const { parseDispatchMessage } = require('./parser');
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://ibflwpfzhqudjautjpaq.supabase.co';
-const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImliZmx3cGZ6aHF1ZGphdXRqcGFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzODE4MzMsImV4cCI6MjEwMDk1NzgzM30.NNC4fklFrVO-j682C5IBtWsab5F-6jjRNfogxOmKG4U';
+const supabaseUrl = 'https://ibflwpfzhqudjautjpaq.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImliZmx3cGZ6aHF1ZGphdXRqcGFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzODE4MzMsImV4cCI6MjEwMDk1NzgzM30.NNC4fklFrVO-j682C5IBtWsab5F-6jjRNfogxOmKG4U';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+function findBestMatchingStockItem(stockItems, dispatch) {
+    if (!stockItems || stockItems.length === 0) return null;
+    if (stockItems.length === 1) return stockItems[0];
+
+    const grnDigits = dispatch.grnNumber.replace(/[^0-9]/g, '');
+    const dispatchVariety = (dispatch.variety || '').toUpperCase();
+    const dispatchSize = (dispatch.size || '').toUpperCase();
+
+    let bestItem = null;
+    let bestScore = -1;
+
+    for (const item of stockItems) {
+        let score = 0;
+        const brand = (item.brand || '').toUpperCase();
+        const productName = (item.product_name || '').toUpperCase();
+        const variety = (item.variety || '').toUpperCase();
+        const subUom = (item.sub_uom || '').toUpperCase();
+
+        if (grnDigits && item.grn_number.includes(grnDigits)) score += 10;
+        if (brand && dispatchVariety.includes(brand)) score += 25;
+        else if (variety && dispatchVariety.includes(variety)) score += 15;
+        else if (productName && dispatchVariety.includes(productName)) score += 10;
+
+        const sizeDigits = dispatchSize.replace(/[^0-9]/g, '');
+        const sizeLetters = dispatchSize.replace(/[^A-Z]/g, '');
+
+        if (subUom) {
+            if (sizeDigits && subUom.includes(sizeDigits)) score += 20;
+            if (sizeLetters && subUom.includes(sizeLetters)) score += 15;
+        }
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestItem = item;
+        }
+    }
+
+    return bestItem || stockItems[0];
+}
 
 let executablePath = '';
 if (fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')) {
@@ -21,47 +60,17 @@ if (fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'))
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
-        executablePath: executablePath || process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: [
-            '--no-sandbox', 
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu'
-        ]
+        executablePath: executablePath || undefined,
     }
 });
 
-let isConnected = false;
-let isAuthenticating = false;
-let latestQR = null;
-
 client.on('qr', (qr) => {
-    latestQR = qr;
-    isConnected = false;
-    isAuthenticating = false;
-    console.log('New QR Code generated, waiting for scan...');
+    console.log('Scan this QR code with WhatsApp:\n');
     qrcode.generate(qr, { small: true });
 });
 
-client.on('authenticated', () => {
-    isAuthenticating = true;
-    latestQR = null;
-    console.log('QR Code scanned! Authenticating and syncing messages...');
-});
-
 client.on('ready', () => {
-    isConnected = true;
-    isAuthenticating = false;
-    latestQR = null;
-    console.log('✅ KERN Logistics Stock Bot is connected and ready!');
-});
-
-client.on('disconnected', (reason) => {
-    console.log('Client was logged out', reason);
-    isConnected = false;
+    console.log('✅ KERN Logistics Stock Bot is connected and listening!');
 });
 
 async function fetchStockDataFromSupabase(partyName = 'LORDS & KINGS ENTERPRISES') {
@@ -395,8 +404,10 @@ let currentChallanData = {
 const userSessions = {};
 
 client.on('message_create', async (msg) => {
-    // Only respond to our specific chat
-    if (msg.to !== '181148835647707@lid') {
+    console.log(`📩 Incoming message from ${msg.from} to ${msg.to}: "${msg.body}"`);
+
+    // Only respond to our specific chat (check both from and to)
+    if (!msg.from.includes('181148835647707') && !msg.to.includes('181148835647707')) {
         return;
     }
 
@@ -412,6 +423,46 @@ client.on('message_create', async (msg) => {
         userSessions[chatId] = { state: 'IDLE' };
     }
     const session = userSessions[chatId];
+
+    // Ignore messages sent by the bot itself or confirmation replies to prevent loops
+    if (!msg.fromMe && !msg.body.includes('Logged dispatch') && !msg.body.includes('Decremented stock')) {
+        const dispatches = parseDispatchMessage(msg.body);
+        if (dispatches.length > 0) {
+            try {
+                const { data: stockItems } = await supabase.from('stock_items').select('*');
+                let loggedCount = 0;
+
+                for (const dispatch of dispatches) {
+                    const grnDigits = dispatch.grnNumber.replace(/[^0-9]/g, '');
+                    const matchingRows = stockItems ? stockItems.filter(item => item.grn_number.includes(grnDigits)) : [];
+                    const matched = findBestMatchingStockItem(matchingRows, dispatch);
+
+                    if (matched) {
+                        const oldQty = Number(matched.closing_qty);
+                        const newQty = Math.max(0, oldQty - dispatch.qtyBoxes);
+
+                        const { error } = await supabase
+                            .from('stock_items')
+                            .update({ closing_qty: newQty })
+                            .eq('id', matched.id);
+
+                        if (!error) {
+                            matched.closing_qty = newQty;
+                            loggedCount++;
+                            console.log(`[SILENT DISPATCH LISTENER] Deducted ${dispatch.qtyBoxes} boxes from GRN ${matched.grn_number} (${matched.brand} / ${matched.sub_uom}). New stock: ${newQty}`);
+                            await msg.reply(`✅ Logged dispatch: ${dispatch.grnNumber}, ${dispatch.qtyBoxes} boxes to ${dispatch.partyName}
+📉 Decremented stock for GRN ${matched.grn_number} (${matched.brand} / ${matched.sub_uom}): ${oldQty} -> ${newQty} (deducted ${dispatch.qtyBoxes} boxes)`);
+                        } else {
+                            console.error('Error updating stock in Supabase:', error);
+                        }
+                    }
+                }
+                if (loggedCount > 0) return;
+            } catch (err) {
+                console.error('Error handling dispatch message:', err);
+            }
+        }
+    }
 
     if (text === 'PING') {
         msg.reply('pong 🏓');
@@ -627,57 +678,3 @@ client.on('message_create', async (msg) => {
 });
 
 client.initialize();
-
-// --- Keep-Alive Express Server for Render ---
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(cors());
-
-app.get('/', (req, res) => {
-    res.send('KERN Logistics Bot is running!');
-});
-
-app.get('/ping', (req, res) => {
-    res.status(200).send('Pong!');
-});
-
-// --- Settings API Endpoints ---
-app.get('/api/whatsapp/status', (req, res) => {
-    res.json({
-        connected: isConnected,
-        authenticating: isAuthenticating,
-        qr: latestQR
-    });
-});
-
-app.post('/api/whatsapp/logout', async (req, res) => {
-    try {
-        console.log('Logging out client via API...');
-        isConnected = false;
-        latestQR = null;
-        
-        await client.logout();
-        await client.destroy();
-        
-        // Re-initialize to get a new QR code
-        console.log('Re-initializing client...');
-        client.initialize();
-        
-        res.json({ success: true, message: 'Logged out and generating new QR code.' });
-    } catch (err) {
-        console.error('Error logging out:', err);
-        // If the client wasn't connected, logout throws. We can just destroy and re-init.
-        try {
-            await client.destroy();
-            client.initialize();
-            res.json({ success: true, message: 'Destroyed and re-initializing.' });
-        } catch (destroyErr) {
-            res.status(500).json({ error: 'Failed to reset client.' });
-        }
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`🌐 Keep-alive server is listening on port ${PORT}`);
-});
