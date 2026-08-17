@@ -119,7 +119,7 @@ class MessagingService {
             }
         });
 
-        this.expressApp.listen(this.port, () => {
+        this.expressApp.listen(this.port, '0.0.0.0', () => {
             console.log(`🌐 Webhook & PDF server running on port ${this.port} (Base URL: ${this.baseUrl})`);
         });
     }
