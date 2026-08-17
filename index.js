@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const PDFDocument = require('pdfkit');
@@ -5,10 +6,15 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const { parseDispatchMessage } = require('./parser');
+const messagingService = require('./services/messaging');
 
-const supabaseUrl = 'https://ibflwpfzhqudjautjpaq.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImliZmx3cGZ6aHF1ZGphdXRqcGFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzODE4MzMsImV4cCI6MjEwMDk1NzgzM30.NNC4fklFrVO-j682C5IBtWsab5F-6jjRNfogxOmKG4U';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://ibflwpfzhqudjautjpaq.supabase.co';
+const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImliZmx3cGZ6aHF1ZGphdXRqcGFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzODE4MzMsImV4cCI6MjEwMDk1NzgzM30.NNC4fklFrVO-j682C5IBtWsab5F-6jjRNfogxOmKG4U';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+const BOT_MODE = (process.env.BOT_MODE || 'wwebjs').toLowerCase(); // 'wwebjs' | 'twilio' | 'hybrid'
+
+console.log(`🚀 Starting Lords & Kings Bot in [${BOT_MODE.toUpperCase()}] mode`);
 
 function findBestMatchingStockItem(stockItems, dispatch) {
     if (!stockItems || stockItems.length === 0) return null;
@@ -49,29 +55,6 @@ function findBestMatchingStockItem(stockItems, dispatch) {
 
     return bestItem || stockItems[0];
 }
-
-let executablePath = '';
-if (fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')) {
-    executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-} else if (fs.existsSync('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe')) {
-    executablePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-}
-
-const client = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: {
-        executablePath: executablePath || undefined,
-    }
-});
-
-client.on('qr', (qr) => {
-    console.log('Scan this QR code with WhatsApp:\n');
-    qrcode.generate(qr, { small: true });
-});
-
-client.on('ready', () => {
-    console.log('✅ Lords and Kings Stock Bot is connected and listening!');
-});
 
 async function fetchStockDataFromSupabase(partyName = 'LORDS & KINGS ENTERPRISES') {
     const { data: items, error } = await supabase
@@ -296,9 +279,8 @@ function generateDeliveryChallanPDF(data, outputPath) {
         doc.text('Address', leftX + 5, metaY + 15); doc.text(':', leftX + 80, metaY + 15); 
         doc.text(data.address, leftX + 90, metaY + 15, { width: 170 });
         
-        // Dynamically calculate the space needed for the address
         let addressHeight = doc.heightOfString(data.address, { width: 170 });
-        let leftNextY = metaY + 15 + addressHeight + 10; // push down Contact Person
+        let leftNextY = metaY + 15 + addressHeight + 10;
         
         doc.text('Contact Person', leftX + 5, leftNextY); doc.text(':', leftX + 80, leftNextY); doc.text(data.contactPerson, leftX + 90, leftNextY);
         doc.text('Contact No', leftX + 5, leftNextY + 10); doc.text(':', leftX + 80, leftNextY + 10); doc.text(data.contactNo, leftX + 90, leftNextY + 10);
@@ -311,9 +293,7 @@ function generateDeliveryChallanPDF(data, outputPath) {
         doc.text('Vehicle No', 340, metaY + 40); doc.text(':', 400, metaY + 40); doc.text(data.vehicleNo, 410, metaY + 40);
         doc.text('Gate In NO', 340, metaY + 50); doc.text(':', 400, metaY + 50); doc.text(data.gateInNo, 410, metaY + 50);
 
-        // Find the lowest point of both columns to draw the separator line
         let sectionBottomY = Math.max(leftNextY + 25, metaY + 65);
-
         doc.moveTo(leftX, sectionBottomY).lineTo(rightX, sectionBottomY).stroke('#333333');
 
         // --- 5. TABLE HEADERS ---
@@ -331,8 +311,7 @@ function generateDeliveryChallanPDF(data, outputPath) {
         y += 15;
         doc.moveTo(leftX, y).lineTo(rightX, y).stroke('#333333');
 
-        let tableTop = sectionBottomY; // Table lines should start from the section bottom
-        
+        let tableTop = sectionBottomY;
         let totalQty = 0;
         doc.font('Helvetica');
         data.items.forEach((item, index) => {
@@ -350,10 +329,7 @@ function generateDeliveryChallanPDF(data, outputPath) {
             y += 15;
         });
 
-        // Fill empty space to make it look like a full table (up to bottom footer)
         let tableBottom = 680;
-        
-        // Draw vertical lines for the table
         const vLines = [leftX + 35, leftX + 130, leftX + 220, leftX + 290, leftX + 350, leftX + 410, leftX + 460];
         vLines.forEach(xPos => {
             doc.moveTo(xPos, tableTop).lineTo(xPos, tableBottom).stroke('#333333');
@@ -376,7 +352,6 @@ function generateDeliveryChallanPDF(data, outputPath) {
         doc.text('GR', leftX + 5, tableBottom + 55);
         doc.text('For Lords and Kings Enterprises', rightX - 180, tableBottom + 55);
         
-        // Signature Placeholder
         doc.moveTo(rightX - 120, tableBottom + 105).lineTo(rightX - 20, tableBottom + 105).stroke('#888888');
         doc.fontSize(8).text('Authorised Signatory', rightX - 120, tableBottom + 110, { width: 100, align: 'center' });
 
@@ -386,7 +361,7 @@ function generateDeliveryChallanPDF(data, outputPath) {
     });
 }
 
-// Global Dummy Delivery Challan State
+// Global Delivery Challan Template State
 let currentChallanData = {
     customerName: 'LORDS & KINGS ENTERPRISES',
     address: 'NO.2/162, 1ST FLOOR, MARY DAVID ILLAMS, KAMARAJAR NAGAR, 9TH CROSS STREET, PERUNGUDI, Chennai -600096, Tamil Nadu',
@@ -403,30 +378,22 @@ let currentChallanData = {
 
 const userSessions = {};
 
-client.on('message_create', async (msg) => {
-    console.log(`📩 Incoming message from ${msg.from} to ${msg.to}: "${msg.body}"`);
-
-    // Only respond to our specific chat (check both from and to)
-    if (!msg.from.includes('181148835647707') && !msg.to.includes('181148835647707')) {
-        return;
-    }
-
-    // Ignore messages from the bot itself to prevent loops
-    if (msg.fromMe && (msg.body === 'pong 🏓' || msg.body.includes('Generating') || msg.body.includes('Updated GRN') || msg.hasMedia || msg.body.includes('Welcome to Lords and Kings') || msg.body.includes('Available Products') || msg.body.includes('Enter the quantity') || msg.body.includes('Reply with the product number'))) {
-        return;
-    }
-
-    const text = msg.body.trim().toUpperCase();
-    const chatId = msg.from;
+/**
+ * Unified Bot Core Engine: Handles incoming messages from any provider (wwebjs or Twilio)
+ */
+async function processUnifiedMessage(msgContext) {
+    const { from, body, fromMe, reply, sendMedia } = msgContext;
+    const text = body.trim().toUpperCase();
+    const chatId = from;
 
     if (!userSessions[chatId]) {
         userSessions[chatId] = { state: 'IDLE' };
     }
     const session = userSessions[chatId];
 
-    // Ignore messages sent by the bot itself or confirmation replies to prevent loops
-    if (!msg.fromMe && !msg.body.includes('Logged dispatch') && !msg.body.includes('Decremented stock')) {
-        const dispatches = parseDispatchMessage(msg.body);
+    // Ignore bot's own status replies to avoid loop
+    if (!fromMe && !body.includes('Logged dispatch') && !body.includes('Decremented stock')) {
+        const dispatches = parseDispatchMessage(body);
         if (dispatches.length > 0) {
             try {
                 const { data: stockItems } = await supabase.from('stock_items').select('*');
@@ -450,8 +417,7 @@ client.on('message_create', async (msg) => {
                             matched.closing_qty = newQty;
                             loggedCount++;
                             console.log(`[SILENT DISPATCH LISTENER] Deducted ${dispatch.qtyBoxes} boxes from GRN ${matched.grn_number} (${matched.brand} / ${matched.sub_uom}). New stock: ${newQty}`);
-                            await msg.reply(`✅ Logged dispatch: ${dispatch.grnNumber}, ${dispatch.qtyBoxes} boxes to ${dispatch.partyName}
-📉 Decremented stock for GRN ${matched.grn_number} (${matched.brand} / ${matched.sub_uom}): ${oldQty} -> ${newQty} (deducted ${dispatch.qtyBoxes} boxes)`);
+                            await reply(`✅ Logged dispatch: ${dispatch.grnNumber}, ${dispatch.qtyBoxes} boxes to ${dispatch.partyName}\n📉 Decremented stock for GRN ${matched.grn_number} (${matched.brand} / ${matched.sub_uom}): ${oldQty} -> ${newQty} (deducted ${dispatch.qtyBoxes} boxes)`);
                         } else {
                             console.error('Error updating stock in Supabase:', error);
                         }
@@ -465,14 +431,14 @@ client.on('message_create', async (msg) => {
     }
 
     if (text === 'PING') {
-        msg.reply('pong 🏓');
+        await reply('pong 🏓');
         return;
     }
 
     if (text === 'CANCEL') {
         session.state = 'IDLE';
         session.selectedProduct = null;
-        await msg.reply('❌ Action cancelled. Returning to main menu.');
+        await reply('❌ Action cancelled. Returning to main menu.');
         return;
     }
 
@@ -480,18 +446,17 @@ client.on('message_create', async (msg) => {
         case 'IDLE':
             if (text === 'LAK/-0026') {
                 session.state = 'AWAITING_ACTION';
-                await msg.reply('*Welcome to Lords and Kings!*\nPlease choose an option for LORDS & KINGS:\n1️⃣ Deliver Products\n2️⃣ Get Stock Summary\n\n_(Reply with 1 or 2)_');
+                await reply('*Welcome to Lords and Kings!*\nPlease choose an option for LORDS & KINGS:\n1️⃣ Deliver Products\n2️⃣ Get Stock Summary\n\n_(Reply with 1 or 2)_');
             }
             break;
 
         case 'AWAITING_ACTION':
             if (text === '1') {
                 session.state = 'AWAITING_PRODUCT_SELECTION';
-                session.cart = []; // Initialize cart
+                session.cart = [];
                 
                 try {
                     const stockData = await fetchStockDataFromSupabase();
-                    
                     let productList = '*Available Products:*\n\n';
                     let productIndex = 1;
                     session.availableProducts = [];
@@ -512,42 +477,45 @@ client.on('message_create', async (msg) => {
                     
                     if (session.availableProducts.length === 0) {
                         session.state = 'IDLE';
-                        await msg.reply('⚠️ No stock available currently.');
+                        await reply('⚠️ No stock available currently.');
                         return;
                     }
 
                     productList += '\n_(Reply with the product number AND quantity separated by a space. E.g., *1 5* for Product 1, Qty 5. Type CANCEL to abort)_';
-                    await msg.reply(productList);
+                    await reply(productList);
                 } catch (error) {
                     session.state = 'IDLE';
-                    await msg.reply('❌ Failed to fetch stock from Supabase.');
+                    await reply('❌ Failed to fetch stock from Supabase.');
                 }
                 
             } else if (text === '2') {
                 session.state = 'IDLE';
-                await msg.reply('⏳ Generating Stock Summary PDF report from live data...');
+                await reply('⏳ Generating Stock Summary PDF report from live data...');
                 try {
                     const stockData = await fetchStockDataFromSupabase();
                     const pdfFilename = `Stock_Summary_${Date.now()}.pdf`;
                     const pdfPath = path.join(__dirname, pdfFilename);
                     
                     await generateStockSummaryPDF(stockData, pdfPath);
-                    const media = MessageMedia.fromFilePath(pdfPath);
-                    await client.sendMessage(msg.to, media, { caption: `📄 *Lords and Kings Live Stock Summary*\n*Party:* ${stockData.partyName}\n*As On Date:* ${stockData.asOfDate}` });
+                    await sendMedia({
+                        filePath: pdfPath,
+                        filename: pdfFilename,
+                        caption: `📄 *Lords and Kings Live Stock Summary*\n*Party:* ${stockData.partyName}\n*As On Date:* ${stockData.asOfDate}`
+                    });
                     fs.unlinkSync(pdfPath);
                 } catch (error) {
                     console.error('Error generating Stock Summary PDF:', error);
-                    await msg.reply('❌ Failed to generate Stock Summary PDF.');
+                    await reply('❌ Failed to generate Stock Summary PDF.');
                 }
             } else {
-                await msg.reply('⚠️ Invalid option. Please reply with 1 or 2, or type CANCEL.');
+                await reply('⚠️ Invalid option. Please reply with 1 or 2, or type CANCEL.');
             }
             break;
 
         case 'AWAITING_PRODUCT_SELECTION':
             const parts = text.split(/\s+/);
             if (parts.length !== 2) {
-                await msg.reply('⚠️ Invalid format. Please reply with the product number AND quantity separated by a space (e.g., *1 5*).');
+                await reply('⚠️ Invalid format. Please reply with the product number AND quantity separated by a space (e.g., *1 5*).');
                 return;
             }
 
@@ -555,17 +523,16 @@ client.on('message_create', async (msg) => {
             const qty = parseFloat(parts[1]);
 
             if (isNaN(selectedNum) || isNaN(qty) || qty <= 0) {
-                await msg.reply('⚠️ Invalid numbers provided. Please ensure both product number and quantity are valid numbers.');
+                await reply('⚠️ Invalid numbers provided. Please ensure both product number and quantity are valid numbers.');
                 return;
             }
             
             const selectedProduct = session.availableProducts.find(p => p.index === selectedNum);
             if (!selectedProduct) {
-                await msg.reply('⚠️ Invalid product number. Please select a valid number from the list.');
+                await reply('⚠️ Invalid product number. Please select a valid number from the list.');
                 return;
             }
             
-            // Check if already in cart to calculate remaining availability
             let cartQty = 0;
             session.cart.forEach(cartItem => {
                 if (cartItem.product.id === selectedProduct.id) {
@@ -574,18 +541,17 @@ client.on('message_create', async (msg) => {
             });
 
             if ((qty + cartQty) > selectedProduct.closingQty) {
-                await msg.reply(`⚠️ Insufficient stock! Max available for this item is ${selectedProduct.closingQty - cartQty}. Please enter a valid quantity.`);
+                await reply(`⚠️ Insufficient stock! Max available for this item is ${selectedProduct.closingQty - cartQty}. Please enter a valid quantity.`);
                 return;
             }
             
-            // Add to cart
             session.cart.push({
                 product: selectedProduct,
                 qty: qty
             });
 
             session.state = 'AWAITING_ADD_MORE';
-            await msg.reply(`✅ Added *${qty}* of *${selectedProduct.productName} (LOT: ${selectedProduct.lotNo})* to delivery.\n\nDo you want to add more products? (Reply *YES* or *NO*)`);
+            await reply(`✅ Added *${qty}* of *${selectedProduct.productName} (LOT: ${selectedProduct.lotNo})* to delivery.\n\nDo you want to add more products? (Reply *YES* or *NO*)`);
             break;
 
         case 'AWAITING_ADD_MORE':
@@ -593,7 +559,6 @@ client.on('message_create', async (msg) => {
                 session.state = 'AWAITING_PRODUCT_SELECTION';
                 let productList = '*Available Products:*\n\n';
                 session.availableProducts.forEach(p => {
-                    // Calculate remaining qty
                     let cartQty = 0;
                     session.cart.forEach(cartItem => {
                         if (cartItem.product.id === p.id) {
@@ -606,20 +571,17 @@ client.on('message_create', async (msg) => {
                     }
                 });
                 productList += '\n_(Reply with the product number AND quantity separated by a space. E.g., *1 5*)_';
-                await msg.reply(productList);
+                await reply(productList);
             } else if (text === 'NO' || text === 'N') {
                 if (session.cart.length === 0) {
                     session.state = 'IDLE';
-                    await msg.reply('❌ No items added to delivery. Cancelling.');
+                    await reply('❌ No items added to delivery. Cancelling.');
                     return;
                 }
 
-                await msg.reply(`⏳ Processing order and updating database...`);
+                await reply(`⏳ Processing order and updating database...`);
 
-                // Finalize delivery
                 let itemsForChallan = [];
-                
-                // Track cumulative deductions by ID
                 const deductions = {};
                 session.cart.forEach(cartItem => {
                     if (!deductions[cartItem.product.id]) {
@@ -627,11 +589,10 @@ client.on('message_create', async (msg) => {
                     }
                     deductions[cartItem.product.id].totalDeduct += cartItem.qty;
                     
-                    // Add to challan array
                     itemsForChallan.push({
                         grnNo: cartItem.product.grnNumber,
                         brand: cartItem.product.brand,
-                        variety: cartItem.product.varity, // intentional spelling to match PDF
+                        variety: cartItem.product.varity,
                         lotNo: cartItem.product.lotNo,
                         count: cartItem.product.subUom || '-',
                         qty: cartItem.qty,
@@ -639,7 +600,6 @@ client.on('message_create', async (msg) => {
                     });
                 });
 
-                // Update Supabase
                 for (const deductInfo of Object.values(deductions)) {
                      const newQty = deductInfo.product.closingQty - deductInfo.totalDeduct;
                      const { error } = await supabase
@@ -657,24 +617,97 @@ client.on('message_create', async (msg) => {
                 
                 session.state = 'IDLE';
                 session.cart = [];
-                await msg.reply(`✅ Generating Delivery Challan PDF with ${itemsForChallan.length} item(s)...`);
+                await reply(`✅ Generating Delivery Challan PDF with ${itemsForChallan.length} item(s)...`);
                 
                 const pdfFilename = `Delivery_Challan_${Date.now()}.pdf`;
                 const pdfPath = path.join(__dirname, pdfFilename);
                 try {
                     await generateDeliveryChallanPDF(currentChallanData, pdfPath);
-                    const media = MessageMedia.fromFilePath(pdfPath);
-                    await client.sendMessage(msg.to, media, { caption: `📄 *Lords and Kings Delivery Challan*\n*Customer:* ${currentChallanData.customerName}\n*DC No:* ${currentChallanData.dcNo}` });
+                    await sendMedia({
+                        filePath: pdfPath,
+                        filename: pdfFilename,
+                        caption: `📄 *Lords and Kings Delivery Challan*\n*Customer:* ${currentChallanData.customerName}\n*DC No:* ${currentChallanData.dcNo}`
+                    });
                     fs.unlinkSync(pdfPath);
                 } catch (error) {
                     console.error('Error generating Delivery Challan PDF:', error);
-                    await msg.reply('❌ Failed to generate Delivery Challan PDF.');
+                    await reply('❌ Failed to generate Delivery Challan PDF.');
                 }
             } else {
-                await msg.reply('⚠️ Please reply with *YES* to add another product, or *NO* to generate the Challan.');
+                await reply('⚠️ Please reply with *YES* to add another product, or *NO* to generate the Challan.');
             }
             break;
     }
-});
+}
 
-client.initialize();
+// Register unified message handler with messagingService
+messagingService.onMessage(processUnifiedMessage);
+
+// Initialize Providers according to BOT_MODE
+
+// 1. Initialize Express & Twilio if mode is 'twilio' or 'hybrid'
+if (BOT_MODE === 'twilio' || BOT_MODE === 'hybrid') {
+    messagingService.initExpressServer();
+    messagingService.initTwilio();
+}
+
+// 2. Initialize whatsapp-web.js if mode is 'wwebjs' or 'hybrid'
+if (BOT_MODE === 'wwebjs' || BOT_MODE === 'hybrid') {
+    let executablePath = '';
+    if (fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')) {
+        executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+    } else if (fs.existsSync('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe')) {
+        executablePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+    }
+
+    const client = new Client({
+        authStrategy: new LocalAuth(),
+        puppeteer: {
+            executablePath: executablePath || undefined,
+        }
+    });
+
+    client.on('qr', (qr) => {
+        console.log('Scan this QR code with WhatsApp:\n');
+        qrcode.generate(qr, { small: true });
+    });
+
+    client.on('ready', () => {
+        console.log('✅ [WWEBJS] Lords and Kings Stock Bot connected & listening!');
+    });
+
+    client.on('message_create', async (msg) => {
+        console.log(`📩 [WWEBJS] Message from ${msg.from} to ${msg.to}: "${msg.body}"`);
+
+        // Apply Chat ID filter if specified in environment or default
+        const targetChatId = process.env.TARGET_CHAT_ID || '181148835647707';
+        if (targetChatId && !msg.from.includes(targetChatId) && !msg.to.includes(targetChatId)) {
+            return;
+        }
+
+        // Loop check for self messages
+        if (msg.fromMe && (msg.body === 'pong 🏓' || msg.body.includes('Generating') || msg.body.includes('Updated GRN') || msg.hasMedia || msg.body.includes('Welcome to Lords and Kings') || msg.body.includes('Available Products') || msg.body.includes('Enter the quantity') || msg.body.includes('Reply with the product number'))) {
+            return;
+        }
+
+        const msgContext = {
+            provider: 'wwebjs',
+            from: msg.from,
+            to: msg.to,
+            body: msg.body || '',
+            fromMe: msg.fromMe,
+            isGroup: msg.from.endsWith('@g.us'),
+            reply: async (text) => {
+                return msg.reply(text);
+            },
+            sendMedia: async ({ filePath, caption }) => {
+                const media = MessageMedia.fromFilePath(filePath);
+                return client.sendMessage(msg.to, media, { caption });
+            }
+        };
+
+        await processUnifiedMessage(msgContext);
+    });
+
+    client.initialize();
+}
