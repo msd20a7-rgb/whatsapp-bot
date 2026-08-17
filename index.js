@@ -417,7 +417,45 @@ async function processUnifiedMessage(msgContext) {
                             matched.closing_qty = newQty;
                             loggedCount++;
                             console.log(`[SILENT DISPATCH LISTENER] Deducted ${dispatch.qtyBoxes} boxes from GRN ${matched.grn_number} (${matched.brand} / ${matched.sub_uom}). New stock: ${newQty}`);
-                            await reply(`✅ Logged dispatch: ${dispatch.grnNumber}, ${dispatch.qtyBoxes} boxes to ${dispatch.partyName}\n📉 Decremented stock for GRN ${matched.grn_number} (${matched.brand} / ${matched.sub_uom}): ${oldQty} -> ${newQty} (deducted ${dispatch.qtyBoxes} boxes)`);
+                            
+                            // 📄 Automatically generate Delivery Challan PDF for this dispatch
+                            const autoChallanData = {
+                                customerName: dispatch.partyName || 'LORDS & KINGS ENTERPRISES',
+                                address: 'NO.2/162, 1ST FLOOR, MARY DAVID ILLAMS, KAMARAJAR NAGAR, 9TH CROSS STREET, PERUNGUDI, Chennai -600096, Tamil Nadu',
+                                contactPerson: 'KARPOV MICHAEL RAJ',
+                                contactNo: '9003631790',
+                                dcNo: `DC/${grnDigits}/${Date.now().toString().slice(-4)}`,
+                                dcDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'),
+                                destination: dispatch.partyName || '',
+                                preparedBy: 'ELAMURUGAN',
+                                vehicleNo: dispatch.transportName || '',
+                                gateInNo: 'GPV/0005534/26-27',
+                                items: [{
+                                    grnNo: matched.grn_number,
+                                    brand: matched.brand,
+                                    variety: matched.variety || matched.product_name,
+                                    lotNo: matched.lot_no,
+                                    count: matched.sub_uom || '-',
+                                    qty: dispatch.qtyBoxes,
+                                    rateType: matched.rate_type
+                                }]
+                            };
+
+                            const pdfFilename = `Delivery_Challan_${Date.now()}.pdf`;
+                            const pdfPath = path.join(__dirname, pdfFilename);
+                            try {
+                                await generateDeliveryChallanPDF(autoChallanData, pdfPath);
+                                const captionText = `✅ *Logged dispatch for ${dispatch.partyName}*\n📉 GRN ${matched.grn_number} stock updated: ${oldQty} ➔ ${newQty} (-${dispatch.qtyBoxes} boxes)\n📄 *Delivery Challan attached below:*`;
+                                await sendMedia({
+                                    filePath: pdfPath,
+                                    filename: pdfFilename,
+                                    caption: captionText
+                                });
+                                if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+                            } catch (pdfErr) {
+                                console.error('Error generating auto DC PDF:', pdfErr);
+                                await reply(`✅ Logged dispatch: ${dispatch.grnNumber}, ${dispatch.qtyBoxes} boxes to ${dispatch.partyName}\n📉 Decremented stock: ${oldQty} -> ${newQty}`);
+                            }
                         } else {
                             console.error('Error updating stock in Supabase:', error);
                         }
