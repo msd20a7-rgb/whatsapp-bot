@@ -528,7 +528,6 @@ async function processUnifiedMessage(msgContext) {
                 
             } else if (text === '2') {
                 session.state = 'IDLE';
-                await reply('⏳ Generating Stock Summary PDF report from live data...');
                 try {
                     const stockData = await fetchStockDataFromSupabase();
                     const pdfFilename = `Stock_Summary_${Date.now()}.pdf`;
