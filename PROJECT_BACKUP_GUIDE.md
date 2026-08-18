@@ -87,13 +87,13 @@ PORT=3000
 SERVER_BASE_URL=https://whatsapp-bot-etdf.onrender.com
 
 # Twilio Official Credentials
-TWILIO_ACCOUNT_SID=YOUR_TWILIO_ACCOUNT_SID
-TWILIO_AUTH_TOKEN=YOUR_TWILIO_AUTH_TOKEN
+TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
+TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
 TWILIO_WHATSAPP_NUMBER=whatsapp:+17372212163
 
 # Supabase Credentials
 SUPABASE_URL=https://ibflwpfzhqudjautjpaq.supabase.co
-SUPABASE_KEY=YOUR_SUPABASE_ANON_KEY
+SUPABASE_KEY=your_supabase_anon_key_here
 ```
 
 ---
