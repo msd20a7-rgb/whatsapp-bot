@@ -50,6 +50,7 @@ class MessagingService {
             fs.mkdirSync(pdfDir, { recursive: true });
         }
         // Lightweight Keep-Alive Ping Endpoints for cron-job.org
+        this.expressApp.get('/', (req, res) => res.status(200).send('OK'));
         this.expressApp.get('/ping', (req, res) => res.status(200).send('OK'));
         this.expressApp.get('/health', (req, res) => res.status(200).send('OK'));
 
